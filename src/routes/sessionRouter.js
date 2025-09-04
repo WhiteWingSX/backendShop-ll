@@ -3,6 +3,10 @@ import passport from 'passport';
 import jwt from 'jsonwebtoken';
 import userModel from "../dao/models/userModel.js";
 import { encryptPassword } from "../utils/userPassUtils.js";
+import UserDTO from "../dto/usersDTO.js";
+import crypto from "crypto"; //nuevo
+import UsersRepository from "../repository/UsersRepository.js"; //nuevo
+import bcrypt from "bcrypt"; //nuevo
 
 const router = Router();
 
@@ -76,9 +80,48 @@ router.get('/current', (req, res, next) => {
             });
         }
 
-        req.user = user;
-        return res.json({ status: 'Usuario Encontrado', user: req.user });
+        const safeUser = new UserDTO(user);
+        return res.json({
+            status: 'Usuario encontrado',
+            user: safeUser
+        });
     })(req, res, next);
+});
+
+// Recuperacion de contraseña
+router.post("/forgot-password", async (req, res) => {
+    const { email } = req.body;
+
+    const user = await UsersRepository.getByEmail(email);
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const token = crypto.randomBytes(20).toString("hex");
+
+    await UsersRepository.setResetToken(email, token, Date.now() + 3600000);
+
+    const resetLink = `http://localhost:8080/api/sessions/reset-password/${token}`;
+
+    console.log("Link de recuperación:", resetLink);
+
+    res.json({ message: "Se ha enviado enlace de recuperacion" });
+});
+
+router.post("/reset-password/:token", async (req, res) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    const user = await UsersRepository.getByResetToken(token);
+    if (!user) return res.status(400).json({ error: "Enlace inválido o expirado" });
+
+    const isSame = await bcrypt.compare(newPassword, user.password);
+    if (isSame) {
+        return res.status(400).json({ error: "No se puede utilizar la misma contraseña" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await UsersRepository.updatePassword(user._id, hashedPassword);
+
+    res.json({ message: "Contraseña actualizada con éxito" });
 });
 
 export default router;

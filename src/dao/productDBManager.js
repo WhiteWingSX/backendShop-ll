@@ -41,7 +41,7 @@ class productDBManager {
             throw new Error('Error al crear el producto');
         }
 
-        return await productModel.create({title, description, code, price, stock, category, thumbnails});  
+        return await productModel.create({title, description, code, price, stock, category, thumbnails});
     }
 
     async updateProduct(pid, productUpdate) {
@@ -54,6 +54,17 @@ class productDBManager {
         if (result.deletedCount === 0) throw new Error(`El producto ${pid} no existe!`);
 
         return result;
+    }
+    async decrementStock(pid, qty) {
+        const product = await productModel.findById(pid);
+        if (!product) throw new Error(`Producto ${pid} no encontrado`);
+
+        if (product.stock < qty) throw new Error(`Stock insuficiente para ${product.title}`);
+
+        product.stock -= qty;
+        await product.save();
+
+        return product;
     }
 }
 

@@ -8,6 +8,8 @@
 
 - Se agrega un sistema de autenticacion y autorizacion
 
+- Se trabaja con DAO (Data Access Object) y DTO (Data Transfer Object) y sistema de recuperacion de contraseña.
+
 ### Herramientas a utilizar:
 
 * Postman

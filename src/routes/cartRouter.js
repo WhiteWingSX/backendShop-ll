@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { productDBManager } from '../dao/productDBManager.js';
 import { cartDBManager } from '../dao/cartDBManager.js';
+import { authorizeRoles, authorizeCartOwner, requireAuth } from "../middlewares/auth.js";
+import passport from "passport";
 
 const router = Router();
 const ProductService = new productDBManager();
@@ -38,21 +40,45 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.post('/:cid/product/:pid', async (req, res) => {
-
-    try {
-        const result = await CartService.addProductByID(req.params.cid, req.params.pid)
-        res.send({
-            status: 'success',
-            payload: result
-        });
-    } catch (error) {
-        res.status(400).send({
-            status: 'error',
-            message: error.message
-        });
+router.post('/:cid/product/:pid', requireAuth, authorizeRoles('user'), authorizeCartOwner(), async (req, res) => {
+        try {
+            const result = await CartService.addProductByID(req.params.cid, req.params.pid);
+            res.send({
+                status: 'success',
+                payload: result
+            });
+        } catch (error) {
+            res.status(400).send({
+                status: 'error',
+                message: error.message
+            });
+        }
     }
-});
+);
+
+//nuevo
+router.post(
+    "/:cid/purchase",
+    passport.authenticate("jwt", { session: false }),
+    async (req, res) => {
+        try {
+            const { cid } = req.params;
+            const purchaserEmail = req.user.email;
+            const result = await CartService.purchaseCart(cid, purchaserEmail);
+
+            res.send({
+                status: "success",
+                message: "La compra se realizo con exito",
+                payload: result,
+            });
+        } catch (error) {
+            res.status(400).send({
+                status: "error",
+                message: error.message,
+            });
+        }
+    }
+);
 
 router.delete('/:cid/product/:pid', async (req, res) => {
 

@@ -2,6 +2,7 @@ import passport from 'passport';
 import local from 'passport-local';
 import jwt from 'passport-jwt';
 import userModel from '../dao/models/userModel.js';
+import {cartModel} from "../dao/models/cartModel.js";
 import { hashPassword, encryptPassword } from '../utils/userPassUtils.js';
 
 const LocalStrategy = local.Strategy;
@@ -18,17 +19,21 @@ export const iniciarPassport = () => {
             passReqToCallback: true
         },
         async (req, email, password, done) => {
-            const { first_name, last_name, age } = req.body;
+            const { first_name, last_name, age, role } = req.body;
             try {
                 let user = await userModel.findOne({ email });
                 if (user) return done(null, false);
+
+                const newCart = await cartModel.create({ products: [] });
 
                 const newUser = {
                     first_name,
                     last_name,
                     email,
                     age,
-                    password: hashPassword(password)
+                    role,
+                    password: hashPassword(password),
+                    cart: newCart._id
                 };
                 let result = await userModel.create(newUser);
                 return done(null, result);
